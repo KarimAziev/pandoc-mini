@@ -1,0 +1,42 @@
+* pandoc-mini
+
+Command dispatcher for [[https://pandoc.org/][pandoc]].
+
+** Requirements
+
+- Emacs >= 27.1 is required.
+- pandoc
+
+** Installation
+
+*** Manual
+
+Ensure that you have installed required dependencies:
+- ~transient~
+
+Download the source code and put it wherever you like, e.g. into =~/.emacs.d/pandoc-mini/=
+
+#+begin_src shell :eval no
+git clone https://github.com/KarimAziev/pandoc-mini.git ~/.emacs.d/pandoc-mini/
+#+end_src
+
+Add the downloaded directory to the load path:
+
+#+begin_src elisp :eval no
+(add-to-list 'load-path "~/.emacs.d/pandoc-mini/")
+(require 'pandoc-mini)
+#+end_src
+
+#+begin_src elisp :eval no
+(use-package pandoc-mini
+  :straight (pandoc-mini
+             :repo "KarimAziev/pandoc-mini"
+             :type git
+             :host github)
+  :commands (pandoc-mini-menu))
+#+end_src
+
+** Transient
+
+-  ~pandoc-mini-menu~
+Transient menu.
