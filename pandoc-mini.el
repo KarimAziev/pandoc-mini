@@ -214,8 +214,8 @@ If OUTFILE is not existing, just return OUTFILE."
 (defvar-local pandoc-mini-to-extensions nil)
 (defun pandoc-mini-input-extensions-reader (&rest _)
   "Return string with pandoc extensions for pandoc format TYPE."
-  (let* ((val (seq-find (apply-partially 'string-match-p "--from=")
-                        (seq-filter 'stringp
+  (let* ((val (seq-find (apply-partially #'string-match-p "--from=")
+                        (seq-filter #'stringp
                                     (transient-args
                                      transient-current-command))))
          (format-type
@@ -227,8 +227,8 @@ If OUTFILE is not existing, just return OUTFILE."
 
 (defun pandoc-mini-out-extensions-reader (&rest _)
   "Return string with pandoc extensions for pandoc format TYPE."
-  (let* ((val (seq-find (apply-partially 'string-match-p "--to=")
-                        (seq-filter 'stringp
+  (let* ((val (seq-find (apply-partially #'string-match-p "--to=")
+                        (seq-filter #'stringp
                                     (transient-args
                                      transient-current-command))))
          (format-type
