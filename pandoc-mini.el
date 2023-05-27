@@ -685,29 +685,18 @@ Invoke CALLBACK without args."
 
 ;;;###autoload (autoload 'pandoc-mini-menu "pandoc-mini.el" nil t)
 (transient-define-prefix pandoc-mini-menu ()
-  "Transient menu for pandoc."
-  :man-page "pandoc"
+	"Transient menu for pandoc."
+	:man-page "pandoc"
   :info-manual "pandoc"
   :value (lambda ()
            (remove nil
                    (or pandoc-mini-local-args
                        (append
-                        (when-let
-                            ((to
-                              (cdr
-                               (assq major-mode
-                                     pandoc-mini-default-output-formats))))
-                          (list (concat "--to=" to)))
-                        (list "--standalone"
-                              "--table-of-contents"
-                              "--toc-depth=3"
-                              "--preserve-tabs"
-                              "--eol=lf"
-                              "--track-changes=accept"
-                              "--trace"
-                              "--file-scope"
-                              "--wrap=auto"
-                              "--columns=72")))))
+                        (when-let ((to
+																		(cdr
+																		 (assq major-mode
+																					 pandoc-mini-default-output-formats))))
+                          (list (concat "--to=" to)))))))
   ["General"
    (pandoc-mini-file-list-or-buffer-arg)
    ("-o" "Output file" pandoc-mini-output-argument)
