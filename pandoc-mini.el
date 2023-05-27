@@ -380,28 +380,23 @@ If OUTFILE is not existing, just return OUTFILE."
   :reader 'pandoc-mini-read-number)
 
 (defun pandoc-mini-get-args ()
-  "Format current args."
-  (if (not (eq transient-current-command 'pandoc-mini-menu))
+	"Return list of sorted arguments of `pandoc-mini-menu'."
+	(if (not (eq transient-current-command 'pandoc-mini-menu))
       (transient-args transient-current-command)
     (let* ((args (transient-args transient-current-command))
            (files (car args)))
-      ;; (dolist (arg '("--from=" "--to="))
-      ;;   (let* ((val (pandoc-mini-get-arg-value arg))
-      ;;          (exts (cdr (assoc val
-      ;;                            (pcase val
-      ;;                              ("--from=" pandoc-mini-from-extensions)
-      ;;                              ("--to=" pandoc-mini-to-extensions))))))
-      ;;     (when exts
-      ;;       (setq args (remove (concat arg val) args))
-      ;;       (setq args (push (concat arg val exts) args)))))
       (flatten-list (list (remove files args) files)))))
 
 ;;;###autoload (autoload 'pandoc-mini-show-args "pandoc-mini.el" nil t)
 (transient-define-suffix pandoc-mini-show-args ()
-  :transient t
+	:transient t
   (interactive)
   (when-let ((args
-              (string-join (pandoc-mini-get-args) "\s")))
+              (string-join (mapcar (lambda (it)
+																		 (if (bufferp it)
+																				 (buffer-name it)
+																			 it))
+																	 (pandoc-mini-get-args)) "\s")))
     (message
      (propertize args 'face 'success))))
 
@@ -562,12 +557,14 @@ itself."
           (pop-to-buffer-same-window pandoc-buff))))))
 
 (defun pandoc-mini-run-with-args (command &rest args)
-  "Execute COMMAND with ARGS in PROJECT-DIR.
+	"Execute COMMAND with ARGS in PROJECT-DIR.
 If DIRECTORY doesn't exists, create new.
 Invoke CALLBACK without args."
-  (let* ((buff-name (generate-new-buffer-name command))
+	(let* ((buff-name (generate-new-buffer-name command))
+				 (args-buffers (seq-filter 'bufferp args))
          (buffer (get-buffer-create command))
          (proc))
+		(setq args (seq-remove 'bufferp args))
     (progn (switch-to-buffer buffer)
            (with-current-buffer buffer
              (setq proc (apply #'start-process buff-name buffer
@@ -582,17 +579,23 @@ Invoke CALLBACK without args."
             (lambda (process _state)
               (let* ((out-buffer (process-buffer
                                   process))
-                     (output (when out-buffer
-                               (with-current-buffer
-                                   out-buffer
-                                 (buffer-string)))))
+                     (output
+											(when out-buffer
+                        (with-current-buffer
+                            out-buffer
+                          (buffer-string)))))
                 (if (= (process-exit-status process) 0)
                     (progn (pandoc-mini-results output)
                            (kill-buffer out-buffer))
                   (user-error "%s\n%s" command output)))))
-           (require 'comint)
+					 (require 'comint)
            (when (fboundp 'comint-output-filter)
-             (set-process-filter proc #'comint-output-filter)))))
+             (set-process-filter proc #'comint-output-filter))
+					 (dolist (buff args-buffers)
+						 (process-send-string proc
+																	(with-current-buffer buff (buffer-string))))
+					 (when args-buffers
+						 (process-send-eof proc)))))
 
 ;;;###autoload
 (defun pandoc-mini-convert-file ()
