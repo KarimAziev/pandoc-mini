@@ -486,10 +486,10 @@ itself."
                       (pandoc-mini--get-default-file-list-or-buffer)))
   :class 'pandoc-mini-input-files-or-buffer)
 
-(cl-defmethod transient-format-value ((obj pandoc-mini-input-files-or-buffer))
-  "Format OBJ's value for display and return the result."
-  (let ((argument (oref obj argument)))
-    (if-let ((value (oref obj value)))
+(cl-defmethod transient-format-value ((this pandoc-mini-input-files-or-buffer))
+	"Format THIS value for display and return the result."
+	(let ((argument (oref this argument)))
+    (if-let ((value (oref this value)))
         (propertize
          (if (listp value)
              ;; Should be list of files.
