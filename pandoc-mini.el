@@ -687,15 +687,15 @@ Invoke CALLBACK without args."
 (transient-define-prefix pandoc-mini-menu ()
 	"Transient menu for pandoc."
 	:man-page "pandoc"
-  :info-manual "pandoc"
   :value (lambda ()
            (remove nil
                    (or pandoc-mini-local-args
                        (append
-                        (when-let ((to
-																		(cdr
-																		 (assq major-mode
-																					 pandoc-mini-default-output-formats))))
+                        (when-let
+														((to
+															(cdr
+															 (assq major-mode
+																		 pandoc-mini-default-output-formats))))
                           (list (concat "--to=" to)))))))
   ["General"
    (pandoc-mini-file-list-or-buffer-arg)
