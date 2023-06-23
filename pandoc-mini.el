@@ -380,8 +380,8 @@ If OUTFILE is not existing, just return OUTFILE."
   :reader 'pandoc-mini-read-number)
 
 (defun pandoc-mini-get-args ()
-	"Return list of sorted arguments of `pandoc-mini-menu'."
-	(if (not (eq transient-current-command 'pandoc-mini-menu))
+  "Return list of sorted arguments of `pandoc-mini-menu'."
+  (if (not (eq transient-current-command 'pandoc-mini-menu))
       (transient-args transient-current-command)
     (let* ((args (transient-args transient-current-command))
            (files (car args)))
@@ -389,66 +389,17 @@ If OUTFILE is not existing, just return OUTFILE."
 
 ;;;###autoload (autoload 'pandoc-mini-show-args "pandoc-mini.el" nil t)
 (transient-define-suffix pandoc-mini-show-args ()
-	:transient t
+  :transient t
   (interactive)
   (when-let ((args
               (string-join (mapcar (lambda (it)
-																		 (if (bufferp it)
-																				 (buffer-name it)
-																			 it))
-																	 (pandoc-mini-get-args)) "\s")))
+                                     (if (bufferp it)
+                                         (buffer-name it)
+                                       it))
+                                   (pandoc-mini-get-args)) "\s")))
     (message
      (propertize args 'face 'success))))
 
-;; (transient-define-prefix pandoc-other-options ()
-;;   ""
-;;   ["Arguments"
-;;    ("-o" pandoc-mini-output-argument)
-;;    ("D" "data-dir=DIRECTORY" "--data-dir=DIRECTORY")
-;;    ("-M" "metadata=KEY[:VALUE]" "--metadata=KEY[:VALUE]")
-;;    ("M" "metadata-file=FILE" "--metadata-file=FILE")
-;;    ("-d" "defaults=FILE" "--defaults=FILE")
-;;    ("tf" "template=FILE" "--template=FILE")
-;;    ("-V" "variable=KEY[:VALUE]" "--variable=KEY[:VALUE]")
-;;    ("-to" "toc-depth=NUMBER" "--toc-depth=NUMBER")
-;;    ("n" "number-offset=NUMBERS" "--number-offset=NUMBERS")
-;;    ("r" "resource-path=SEARCHPATH" "--resource-path=SEARCHPATH")
-;;    ("-H" "include-in-header=FILE" "--include-in-header=FILE")
-;;    ("-B" "include-before-body=FILE" "--include-before-body=FILE")
-;;    ("-A" "include-after-body=FILE" "--include-after-body=FILE")
-;;    ("s" "syntax-definition=FILE" "--syntax-definition=FILE")
-;;    ("d" "dpi=NUMBER" "--dpi=NUMBER")
-;;    ("tb" "tab-stop=NUMBER" "--tab-stop=NUMBER")
-;;    ("p" "pdf-engine=PROGRAM" "--pdf-engine=PROGRAM")
-;;    ("p" "pdf-engine-opt=STRING" "--pdf-engine-opt=STRING")
-;;    ("r" "reference-doc=FILE" "--reference-doc=FILE")
-;;    ("r" "request-header=NAME:VALUE" "--request-header=NAME:VALUE")
-;;    ("i" "indented-code-classes=STRING" "--indented-code-classes=STRING")
-;;    ("d" "default-image-extension=extension"
-;;     "--default-image-extension=extension")
-;;    ("-F" "filter=PROGRAM" "--filter=PROGRAM")
-;;    ("-L" "lua-filter=SCRIPTPATH" "--lua-filter=SCRIPTPATH")
-;;    ("s" "shift-heading-level-by=NUMBER" "--shift-heading-level-by=NUMBER")
-;;    ("b" "base-header-level=NUMBER" "--base-header-level=NUMBER")
-;;    ("s" "slide-level=NUMBER" "--slide-level=NUMBER")
-;;    ("i" "id-prefix=STRING" "--id-prefix=STRING")
-;;    ("-T" "title-prefix=STRING" "--title-prefix=STRING")
-;;    ("-c" "css=URL" "--css=URL")
-;;    ("e" "epub-subdirectory=DIRNAME" "--epub-subdirectory=DIRNAME")
-;;    ("e" "epub-cover-image=FILE" "--epub-cover-image=FILE")
-;;    ("e" "epub-metadata=FILE" "--epub-metadata=FILE")
-;;    ("e" "epub-embed-font=FILE" "--epub-embed-font=FILE")
-;;    ("e" "epub-chapter-level=NUMBER" "--epub-chapter-level=NUMBER")
-;;    ("b" "bibliography=FILE" "--bibliography=FILE")
-;;    ("c" "csl=FILE" "--csl=FILE")
-;;    ("c" "citation-abbreviations=FILE" "--citation-abbreviations=FILE")
-;;    ("w" "webtex[=URL]" "--webtex[=URL]")
-;;    ("m" "mathjax[=URL]" "--mathjax[=URL]")
-;;    ("k" "katex[=URL]" "--katex[=URL]")
-;;    ("log" "log=FILE" "--log=FILE")
-;;    ("lse" "list-extensions[=FORMAT]" "--list-extensions[=FORMAT]")
-;;    ("-D" "print-default-template=FORMAT" "--print-default-template=FORMAT")
-;;    ("pd" "print-default-data-file=FILE" "--print-default-data-file=FILE")])
 
 
 (defun pandoc-mini-read-file (prompt _initial-input _history)
@@ -487,8 +438,8 @@ itself."
   :class 'pandoc-mini-input-files-or-buffer)
 
 (cl-defmethod transient-format-value ((this pandoc-mini-input-files-or-buffer))
-	"Format THIS value for display and return the result."
-	(let ((argument (oref this argument)))
+  "Format THIS value for display and return the result."
+  (let ((argument (oref this argument)))
     (if-let ((value (oref this value)))
         (propertize
          (if (listp value)
@@ -557,14 +508,14 @@ itself."
           (pop-to-buffer-same-window pandoc-buff))))))
 
 (defun pandoc-mini-run-with-args (command &rest args)
-	"Execute COMMAND with ARGS in PROJECT-DIR.
+  "Execute COMMAND with ARGS in PROJECT-DIR.
 If DIRECTORY doesn't exists, create new.
 Invoke CALLBACK without args."
-	(let* ((buff-name (generate-new-buffer-name command))
-				 (args-buffers (seq-filter 'bufferp args))
+  (let* ((buff-name (generate-new-buffer-name command))
+         (args-buffers (seq-filter 'bufferp args))
          (buffer (get-buffer-create command))
          (proc))
-		(setq args (seq-remove 'bufferp args))
+    (setq args (seq-remove 'bufferp args))
     (progn (switch-to-buffer buffer)
            (with-current-buffer buffer
              (setq proc (apply #'start-process buff-name buffer
@@ -580,7 +531,7 @@ Invoke CALLBACK without args."
               (let* ((out-buffer (process-buffer
                                   process))
                      (output
-											(when out-buffer
+                      (when out-buffer
                         (with-current-buffer
                             out-buffer
                           (buffer-string)))))
@@ -588,14 +539,14 @@ Invoke CALLBACK without args."
                     (progn (pandoc-mini-results output)
                            (kill-buffer out-buffer))
                   (user-error "%s\n%s" command output)))))
-					 (require 'comint)
+           (require 'comint)
            (when (fboundp 'comint-output-filter)
              (set-process-filter proc #'comint-output-filter))
-					 (dolist (buff args-buffers)
-						 (process-send-string proc
-																	(with-current-buffer buff (buffer-string))))
-					 (when args-buffers
-						 (process-send-eof proc)))))
+           (dolist (buff args-buffers)
+             (process-send-string proc
+                                  (with-current-buffer buff (buffer-string))))
+           (when args-buffers
+             (process-send-eof proc)))))
 
 ;;;###autoload
 (defun pandoc-mini-convert-file ()
@@ -685,17 +636,17 @@ Invoke CALLBACK without args."
 
 ;;;###autoload (autoload 'pandoc-mini-menu "pandoc-mini.el" nil t)
 (transient-define-prefix pandoc-mini-menu ()
-	"Transient menu for pandoc."
-	:man-page "pandoc"
+  "Transient menu for pandoc."
+  :man-page "pandoc"
   :value (lambda ()
            (remove nil
                    (or pandoc-mini-local-args
                        (append
                         (when-let
-														((to
-															(cdr
-															 (assq major-mode
-																		 pandoc-mini-default-output-formats))))
+                            ((to
+                              (cdr
+                               (assq major-mode
+                                     pandoc-mini-default-output-formats))))
                           (list (concat "--to=" to)))))))
   ["General"
    (pandoc-mini-file-list-or-buffer-arg)
