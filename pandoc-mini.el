@@ -6,7 +6,8 @@
 ;; URL: https://github.com/KarimAziev/pandoc-mini
 ;; Version: 0.1.0
 ;; Keywords: tools docs convenience
-;; Package-Requires: ((emacs "27.1") (transient "0.3.7.50-git"))
+;; Package-Requires: ((emacs "27.1") (transient "0.4.1"))
+;; SPDX-License-Identifier: GPL-3.0-or-later
 
 ;; This file is NOT part of GNU Emacs.
 
@@ -96,15 +97,14 @@
 
 (defun pandoc-mini-output-format-to-extension (output-format)
   "Return filename extension for pandoc OUTPUT-FORMAT."
-  (or
-   (pcase output-format
-     ((or "gfm" "markdown" "markdown_github"
-          "markdown_mmd"
-          "markdown_phpextra"
-          "markdown_strict")
-      "md")
-     ((or "html5" "html" "html4") "html"))
-   output-format))
+  (pcase output-format
+    ((or "gfm" "markdown" "markdown_github"
+         "markdown_mmd"
+         "markdown_phpextra"
+         "markdown_strict")
+     "md")
+    ((or "html5" "html" "html4") "html")
+    (_ output-format)))
 
 
 
@@ -475,78 +475,128 @@ itself."
 
 (defvar pandoc-mini-last-out-format nil)
 (defvar pandoc-mini-last-out-file nil)
+
+
+(defun pandoc-mini-get-out-mode ()
+  "Determine the output mode from the last used pandoc format."
+  (cdr (assoc
+        (when pandoc-mini-last-out-format
+          (replace-regexp-in-string "^--to=" ""
+                                    pandoc-mini-last-out-format))
+        pandoc-mini-modes-alist)))
+
 (defun pandoc-mini-results (output)
   "Show OUTPUT in new buffer."
-  (if (and pandoc-mini-last-out-file
-           (file-exists-p pandoc-mini-last-out-file))
-      (progn (find-file-other-window pandoc-mini-last-out-file)
-             (setq pandoc-mini-last-out-file nil))
-    (let ((pandoc-buff (get-buffer-create (generate-new-buffer-name
-                                           "*pandoc-mini-output*")))
-          (out-mode
-           (cdr-safe
-            (assoc
-             (when pandoc-mini-last-out-format
+  (let ((pandoc-buff (get-buffer-create (generate-new-buffer-name
+                                         "*pandoc-mini-output*")))
+        (out-mode
+         (pandoc-mini-get-out-mode)))
+    (with-current-buffer pandoc-buff
+      (when output
+        (insert output))
+      (when (and out-mode
+                 (functionp out-mode))
+        (delay-mode-hooks (funcall out-mode)
+                          (font-lock-ensure))
+        (setq pandoc-mini-last-out-format nil)))
+    (unless (get-buffer-window pandoc-buff)
+      (pandoc-mini-call-in-other-window #'pop-to-buffer-same-window
+                                        pandoc-buff))))
+(defun pandoc-mini-get-buffer-name (args)
+  "Generate a new buffer name based on the ARGS and the last output format.
+
+Argument ARGS is a list that is used to find a buffer."
+  (let ((name
+         (if-let ((buff (seq-find
+                         #'bufferp
+                         args)))
+             (replace-regexp-in-string "[^a-z]" "" (buffer-name buff))
+           (or (and pandoc-mini-last-out-file
+                    (file-name-base pandoc-mini-last-out-file))
+               (when (car-safe (car pandoc-mini-local-args))
+                 (file-name-base (caar pandoc-mini-local-args))))))
+        (ext
+         (and pandoc-mini-last-out-format
+              (pandoc-mini-output-format-to-extension
                (replace-regexp-in-string "^--to=" ""
-                                         pandoc-mini-last-out-format))
-             pandoc-mini-modes-alist))))
-      (with-current-buffer pandoc-buff
-        (when output
-          (insert output))
-        (when (and out-mode
-                   (functionp out-mode))
-          (delay-mode-hooks (funcall out-mode)
-                            (font-lock-ensure))
-          (setq pandoc-mini-last-out-format nil)))
-      (unless (get-buffer-window pandoc-buff)
-        (with-selected-window (or
-                               (window-right
-                                (selected-window))
-                               (window-left
-                                (selected-window))
-                               (split-window-right))
-          (pop-to-buffer-same-window pandoc-buff))))))
+                                         pandoc-mini-last-out-format)))))
+    (generate-new-buffer-name
+     (string-join
+      (list (concat "pandoc-" (or name ""))
+            ext)
+      "."))))
+
+
+(defun pandoc-mini-fix-org-src-emacs-elisp ()
+  "Replace `emacs-lisp' with `elisp' in \"#+begin_src\" tags.
+The reason is Pandoc will convert `emacs-lisp' to `commonlisp'
+in the markdown output."
+  (save-excursion
+    (goto-char (point-min))
+    (let ((case-fold-search t))
+      (while (re-search-forward "#\\+begin_src[\s]+\\_<\\(emacs-lisp\\)\\_>" nil
+                                t
+                                1)
+        (replace-match "elisp" nil nil nil 1)))))
 
 (defun pandoc-mini-run-with-args (command &rest args)
   "Execute COMMAND with ARGS in PROJECT-DIR.
 If DIRECTORY doesn't exists, create new.
 Invoke CALLBACK without args."
-  (let* ((buff-name (generate-new-buffer-name command))
-         (args-buffers (seq-filter 'bufferp args))
-         (buffer (get-buffer-create command))
+  (let* ((args-buffers (seq-filter #'bufferp args))
+         (buff-name (pandoc-mini-get-buffer-name args))
+         (buffer (get-buffer-create buff-name))
+         (out-mode (pandoc-mini-get-out-mode))
          (proc))
-    (setq args (seq-remove 'bufferp args))
-    (progn (switch-to-buffer buffer)
-           (with-current-buffer buffer
-             (setq proc (apply #'start-process buff-name buffer
-                               command
-                               args))
-             (require 'shell)
-             (when (fboundp 'shell-mode)
-               (shell-mode))
-             (view-mode +1))
-           (set-process-sentinel
-            proc
-            (lambda (process _state)
-              (let* ((out-buffer (process-buffer
-                                  process))
-                     (output
-                      (when out-buffer
-                        (with-current-buffer
-                            out-buffer
-                          (buffer-string)))))
-                (if (= (process-exit-status process) 0)
-                    (progn (pandoc-mini-results output)
-                           (kill-buffer out-buffer))
-                  (user-error "%s\n%s" command output)))))
-           (require 'comint)
-           (when (fboundp 'comint-output-filter)
-             (set-process-filter proc #'comint-output-filter))
-           (dolist (buff args-buffers)
-             (process-send-string proc
-                                  (with-current-buffer buff (buffer-string))))
-           (when args-buffers
-             (process-send-eof proc)))))
+    (progn
+      (setq proc (apply #'start-process command buffer command
+                        (seq-remove #'bufferp args)))
+      (set-process-sentinel
+       proc
+       (lambda (process _state)
+         (let* ((out-buffer (process-buffer process))
+                (status (process-exit-status process)))
+           (cond ((and pandoc-mini-last-out-file
+                       (file-exists-p pandoc-mini-last-out-file)
+                       (zerop status))
+                  (if-let ((buff (get-file-buffer
+                                  pandoc-mini-last-out-file)))
+                      (progn
+                        (unless (get-buffer-window buff)
+                          (find-file-other-window
+                           pandoc-mini-last-out-file))
+                        (setq pandoc-mini-last-out-file nil))
+                    (find-file-other-window
+                     pandoc-mini-last-out-file)))
+                 ((and (zerop status)
+                       out-mode
+                       (functionp out-mode))
+                  (when (buffer-live-p out-buffer)
+                    (with-current-buffer out-buffer
+                      (let ((inhibit-read-only t))
+                        (goto-char (point-min))
+                        (delay-mode-hooks
+                          (funcall out-mode)
+                          (font-lock-ensure))))
+                    (unless (get-buffer-window out-buffer)
+                      (pandoc-mini-call-in-other-window
+                       #'pop-to-buffer-same-window
+                       out-buffer))))
+                 (t
+                  (unless (get-buffer-window out-buffer)
+                    (pandoc-mini-call-in-other-window
+                     #'pop-to-buffer-same-window
+                     out-buffer)))))))
+      (dolist (buff args-buffers)
+        (let ((str (with-temp-buffer
+                     (insert (with-current-buffer buff
+                               (buffer-string)))
+                     (pandoc-mini-fix-org-src-emacs-elisp)
+                     (buffer-string))))
+          (process-send-string proc str)))
+      (when args-buffers
+        (process-send-eof proc)))))
+
 
 ;;;###autoload
 (defun pandoc-mini-convert-file ()
@@ -600,7 +650,6 @@ Invoke CALLBACK without args."
                               args)))
     (substring-no-properties value (length arg))))
 
-;;;###autoload
 (defun pandoc-mini-run ()
   "Run quicktype with transient arguments."
   (interactive)
@@ -619,7 +668,7 @@ Invoke CALLBACK without args."
   (apply #'pandoc-mini-run-with-args pandoc-mini-executable
          (pandoc-mini-get-args)))
 
-;;;###autoload (autoload 'pandoc-mini-list-prefix "pandoc-mini.el" nil t)
+;;;###autoload (autoload 'pandoc-mini-list-prefix "pandoc-mini" nil t)
 (transient-define-prefix pandoc-mini-list-prefix ()
   "Pandoc listing options."
   [[("i" "input-formats" "--list-input-formats")
@@ -634,7 +683,7 @@ Invoke CALLBACK without args."
                                "--list-output-formats")))]]
   [("RET" "Run" pandoc-mini-run :transient nil)])
 
-;;;###autoload (autoload 'pandoc-mini-menu "pandoc-mini.el" nil t)
+;;;###autoload (autoload 'pandoc-mini-menu "pandoc-mini" nil t)
 (transient-define-prefix pandoc-mini-menu ()
   "Transient menu for pandoc."
   :man-page "pandoc"
@@ -703,7 +752,7 @@ Invoke CALLBACK without args."
     ("RET" "Run" pandoc-mini-run)
     ("<return>" "Run" pandoc-mini-run)]]
   (interactive)
-  (transient-setup 'pandoc-mini-menu))
+  (transient-setup #'pandoc-mini-menu))
 
 (provide 'pandoc-mini)
 ;;; pandoc-mini.el ends here
