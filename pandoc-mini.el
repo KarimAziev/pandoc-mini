@@ -153,7 +153,7 @@ Default value for SUFFIX is -."
   (completing-read "Output: " (pandoc-mini-outputs-candidates)))
 
 (defun pandoc-mini-read-file-name ()
-  "Read available pandoc outputs."
+  "Prompt user to select a file name, initializing pandoc formats first."
   (pandoc-mini-init-formats)
   (read-file-name "File: "))
 
@@ -194,7 +194,9 @@ If OUTFILE is not existing, just return OUTFILE."
         (?s (pandoc-mini-generate-new-filename outfile))))))
 
 (defun pandoc-mini-read-extensions (&optional type)
-  "Return string with pandoc extensions for pandoc format TYPE."
+  "Read and toggle pandoc extensions, returning a concatenated string of choices.
+
+The optional argument TYPE specifies the type of extensions to list."
   (let* ((lines (process-lines "pandoc" (if type
                                             (concat
                                              "--list-extensions="
@@ -213,7 +215,7 @@ If OUTFILE is not existing, just return OUTFILE."
 (defvar-local pandoc-mini-from-extensions nil)
 (defvar-local pandoc-mini-to-extensions nil)
 (defun pandoc-mini-input-extensions-reader (&rest _)
-  "Return string with pandoc extensions for pandoc format TYPE."
+  "Read and return pandoc extensions for a specified format type."
   (let* ((val (seq-find (apply-partially #'string-match-p "--from=")
                         (seq-filter #'stringp
                                     (transient-args
@@ -226,7 +228,7 @@ If OUTFILE is not existing, just return OUTFILE."
           (pandoc-mini-read-extensions format-type))))
 
 (defun pandoc-mini-out-extensions-reader (&rest _)
-  "Return string with pandoc extensions for pandoc format TYPE."
+  "Read and set Pandoc output extensions for a format."
   (let* ((val (seq-find (apply-partially #'string-match-p "--to=")
                         (seq-filter #'stringp
                                     (transient-args
@@ -252,7 +254,13 @@ If OUTFILE is not existing, just return OUTFILE."
     format-type))
 
 (defun pandoc-mini-out-format-reader (&optional prompt input history)
-  "Read input formats with PROMPT, INPUT and HISTORY."
+  "Read and return a pandoc output format from user input with completion.
+
+Optional argument PROMPT is the string to display as the prompt.
+
+Optional argument INPUT is the initial input to prefill the minibuffer.
+
+Optional argument HISTORY is the history list to use for minibuffer input."
   (let* ((formats (process-lines "pandoc" "--list-output-formats"))
          (format-type (completing-read (or prompt "Input format: ") formats nil
                                        t input history)))
