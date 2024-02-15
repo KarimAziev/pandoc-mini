@@ -396,18 +396,43 @@ If OUTFILE is not existing, just return OUTFILE."
                                      (if (bufferp it)
                                          (buffer-name it)
                                        it))
-                                   (pandoc-mini-get-args)) "\s")))
+                                   (pandoc-mini-get-args))
+                           "\s")))
     (message
      (propertize args 'face 'success))))
 
 
 
-(defun pandoc-mini-read-file (prompt _initial-input _history)
+(defun pandoc-mini-read-file (prompt &optional _initial-input _history)
   "PROMPT for file name.
 
 Returns a list containing the filename.  The file must exist."
-  (list (file-local-name (expand-file-name
-                          (read-file-name prompt nil nil t)))))
+  (let ((reader-types '(file url))
+        (reader 'file)
+        (result))
+    (while (setq reader (catch 'next-source
+                          (minibuffer-with-setup-hook
+                              (lambda ()
+                                (use-local-map
+                                 (let ((map (make-sparse-keymap)))
+                                   (define-key map
+                                               (kbd "C->")
+                                               (lambda ()
+                                                 (interactive)
+                                                 (throw 'next-source (or (cadr (memq reader
+                                                                                     reader-types))
+                                                                         (car reader-types)))))
+                                   (set-keymap-parent map (current-local-map))
+                                   map)))
+                            (when-let ((curr
+                                        (pcase reader
+                                          ('file (file-local-name
+                                                  (expand-file-name
+                                                   (read-file-name (format "%s (%s)" prompt reader)
+                                                                   nil nil t))))
+                                          ('url (read-string (format "%s (%s)" prompt reader))))))
+                              (push curr result))))))
+    result))
 
 (defclass pandoc-mini-input-files-or-buffer (transient-infix)
   ((key         :initform "--")
