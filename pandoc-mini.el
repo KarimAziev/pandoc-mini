@@ -6,7 +6,7 @@
 ;; URL: https://github.com/KarimAziev/pandoc-mini
 ;; Version: 0.1.0
 ;; Keywords: tools docs convenience
-;; Package-Requires: ((emacs "27.1") (transient "0.4.1"))
+;; Package-Requires: ((emacs "27.1") (transient "0.7.3"))
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 
 ;; This file is NOT part of GNU Emacs.
@@ -117,7 +117,7 @@
             (seq-sort-by (lambda (ext)
                            (if (member ext priortity-exts)
                                1 -1))
-                         '> (remove ext pandoc-mini-output-formats)))
+                         #'> (remove ext pandoc-mini-output-formats)))
         (remove ext pandoc-mini-output-formats))
     pandoc-mini-output-formats))
 
@@ -474,16 +474,17 @@ itself."
   "Format THIS value for display and return the result."
   (let ((argument (oref this argument)))
     (if-let ((value (oref this value)))
-        (propertize
-         (if (listp value)
-             ;; Should be list of files.
-             (mapconcat (lambda (x)
-                          (file-relative-name
-                           (abbreviate-file-name (string-trim x "\"" "\""))))
-                        value " ")
-           ;; Should be a buffer
-           (prin1-to-string value))
-         'face 'transient-value)
+        (truncate-string-to-width (propertize
+                                   (if (listp value)
+                                       ;; Should be list of files.
+                                       (mapconcat (lambda (x)
+                                                    (file-relative-name
+                                                     (abbreviate-file-name (string-trim x "\"" "\""))))
+                                                  value " ")
+                                     ;; Should be a buffer
+                                     (prin1-to-string value))
+                                   'face 'transient-value)
+                                  50 nil nil t)
       (propertize argument 'face 'transient-inactive-value))))
 
 (defvar-local pandoc-mini-local-args nil)
@@ -572,6 +573,22 @@ in the markdown output."
                                 1)
         (replace-match "elisp" nil nil nil 1)))))
 
+(defun pandoc-mini--strip-custom-id-props ()
+  "Remove custom ID properties from the current buffer."
+  (save-excursion
+    (goto-char (point-min))
+    (let ((case-fold-search t))
+      (while (re-search-forward
+              ":properties:[\n]+[\s\t]+:custom_id:[\s\t][^\n]+[\n]+[\s\t]+\\(:[^E]+\\)*:end:[\n]"
+              nil t 1)
+        (replace-match "")))))
+
+;;;###autoload
+(defun pandoc-mini-strip-custom-id-props ()
+  "Remove custom ID properties from the text."
+  (interactive)
+  (pandoc-mini--strip-custom-id-props))
+
 (defun pandoc-mini-run-with-args (command &rest args)
   "Execute COMMAND with ARGS in PROJECT-DIR.
 If DIRECTORY doesn't exists, create new.
@@ -635,18 +652,10 @@ Invoke CALLBACK without args."
 (defun pandoc-mini-convert-file ()
   "Convert file with pandoc."
   (interactive)
-  (setq pandoc-mini-file (or
-                          (when (fboundp 'pandoc-mini-read-file-name)
-                            (pandoc-mini-read-file-name))
-                          (read-file-name "File to convert:\s"
-                                          nil
-                                          buffer-file-name
-                                          nil
-                                          buffer-file-name)))
-  (let* ((output-format (when (fboundp 'pandoc-mini-read-outputs)
-                          (pandoc-mini-read-outputs)))
+  (setq pandoc-mini-file (pandoc-mini-read-file-name))
+  (let* ((output-format (pandoc-mini-read-outputs))
          (output-dir (read-directory-name
-                      "Directory:\s" nil nil nil
+                      "Directory: " nil nil nil
                       (file-name-directory pandoc-mini-file)))
          (outfile (pandoc-mini-confirm-file-if-exist
                    (expand-file-name
@@ -655,20 +664,19 @@ Invoke CALLBACK without args."
                      (pandoc-mini-output-format-to-extension
                       output-format))
                     output-dir)))
-         (command)
-         (buff))
-    (setq command
-          (read-string "Run "
-                       (string-join
-                        `("pandoc" "--standalone -s" ,(shell-quote-argument
-                                                       (expand-file-name
-                                                        pandoc-mini-file))
-                          "-t"
-                          ,output-format "-o"
-                          ,(shell-quote-argument
-                            outfile))
-                        "\s")))
-    (setq buff (get-buffer-create "*pandoc-mini*"))
+         (command (read-string "Run "
+                               (string-join
+                                `("pandoc"
+                                  "--standalone -s"
+                                  ,(shell-quote-argument
+                                    (expand-file-name
+                                     pandoc-mini-file))
+                                  "-t"
+                                  ,output-format "-o"
+                                  ,(shell-quote-argument
+                                    outfile))
+                                "\s")))
+         (buff (get-buffer-create "*pandoc-mini*")))
     (shell-command command buff buff)
     (if (file-exists-p outfile)
         (find-file outfile)
@@ -724,11 +732,10 @@ Invoke CALLBACK without args."
            (remove nil
                    (or pandoc-mini-local-args
                        (append
-                        (when-let
-                            ((to
-                              (cdr
-                               (assq major-mode
-                                     pandoc-mini-default-output-formats))))
+                        (when-let ((to
+                                    (cdr
+                                     (assq major-mode
+                                           pandoc-mini-default-output-formats))))
                           (list (concat "--to=" to)))))))
   ["General"
    (pandoc-mini-file-list-or-buffer-arg)
@@ -737,7 +744,7 @@ Invoke CALLBACK without args."
    ("-w" "Output format" pandoc-mini-out-format-arg)
    ("-d" "Data dir" pandoc-mini-data-dir-argument)
    ("v" "verbose" "--verbose")
-   ("-q" "quiet" "--quiet")
+   ("-W" "quiet" "--quiet")
    ("-F" "fail-if-warnings" "--fail-if-warnings")]
   ["Reader options"
    ("-S" "file-scope" "--file-scope")
