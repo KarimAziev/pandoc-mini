@@ -110,7 +110,7 @@
 
 (defun pandoc-mini-outputs-candidates ()
   "Return pandoc output formats for `pandoc-mini-file'."
-  (if-let ((ext (and pandoc-mini-file (file-name-extension pandoc-mini-file))))
+  (if-let* ((ext (and pandoc-mini-file (file-name-extension pandoc-mini-file))))
       (if (assoc ext pandoc-mini-preferred-extensions-alist)
           (let ((priortity-exts
                  (cdr (assoc ext pandoc-mini-preferred-extensions-alist))))
@@ -238,7 +238,7 @@ The optional argument TYPE specifies the type of extensions to list."
                      val
                      (length "--to="))))
          (result (pandoc-mini-read-extensions format-type)))
-    (if-let ((cell (assoc format-type pandoc-mini-to-extensions)))
+    (if-let* ((cell (assoc format-type pandoc-mini-to-extensions)))
         (setcdr cell result)
       (setq pandoc-mini-to-extensions (push (cons format-type result)
                                             pandoc-mini-to-extensions)))
@@ -399,7 +399,7 @@ Optional argument HISTORY is the history list to use for minibuffer input."
 (transient-define-suffix pandoc-mini-show-args ()
   :transient t
   (interactive)
-  (when-let ((args
+  (when-let* ((args
               (string-join (mapcar (lambda (it)
                                      (if (bufferp it)
                                          (buffer-name it)
@@ -432,7 +432,7 @@ Returns a list containing the filename.  The file must exist."
                                                                          (car reader-types)))))
                                    (set-keymap-parent map (current-local-map))
                                    map)))
-                            (when-let ((curr
+                            (when-let* ((curr
                                         (pcase reader
                                           ('file (file-local-name
                                                   (expand-file-name
@@ -473,7 +473,7 @@ itself."
 (cl-defmethod transient-format-value ((this pandoc-mini-input-files-or-buffer))
   "Format THIS value for display and return the result."
   (let ((argument (oref this argument)))
-    (if-let ((value (oref this value)))
+    (if-let* ((value (oref this value)))
         (truncate-string-to-width (propertize
                                    (if (listp value)
                                        ;; Should be list of files.
@@ -541,7 +541,7 @@ itself."
 
 Argument ARGS is a list that is used to find a buffer."
   (let ((name
-         (if-let ((buff (seq-find
+         (if-let* ((buff (seq-find
                          #'bufferp
                          args)))
              (replace-regexp-in-string "[^a-z]" "" (buffer-name buff))
@@ -609,7 +609,7 @@ Invoke CALLBACK without args."
            (cond ((and pandoc-mini-last-out-file
                        (file-exists-p pandoc-mini-last-out-file)
                        (zerop status))
-                  (if-let ((buff (get-file-buffer
+                  (if-let* ((buff (get-file-buffer
                                   pandoc-mini-last-out-file)))
                       (progn
                         (unless (get-buffer-window buff)
@@ -684,7 +684,7 @@ Invoke CALLBACK without args."
 
 (defun pandoc-mini-get-arg-value (arg args)
   "Return value of argument ARG from ARGS."
-  (when-let ((value (seq-find (lambda (it)
+  (when-let* ((value (seq-find (lambda (it)
                                 (and it
                                      (stringp it)
                                      (string-prefix-p arg it)))
@@ -701,7 +701,7 @@ Invoke CALLBACK without args."
           (or (seq-find (apply-partially #'string-match-p "--to=")
                         (seq-filter #'stringp pandoc-mini-local-args))))
     (setq pandoc-mini-last-out-file
-          (when-let ((outfile (seq-find (apply-partially #'string-match-p
+          (when-let* ((outfile (seq-find (apply-partially #'string-match-p
                                                          "--output=")
                                         (seq-filter #'stringp
                                                     pandoc-mini-local-args))))
@@ -732,7 +732,7 @@ Invoke CALLBACK without args."
            (remove nil
                    (or pandoc-mini-local-args
                        (append
-                        (when-let ((to
+                        (when-let* ((to
                                     (cdr
                                      (assq major-mode
                                            pandoc-mini-default-output-formats))))
