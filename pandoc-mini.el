@@ -579,7 +579,7 @@ in the markdown output."
     (goto-char (point-min))
     (let ((case-fold-search t))
       (while (re-search-forward
-              ":properties:[\n]+[\s\t]+:custom_id:[\s\t][^\n]+[\n]+[\s\t]+\\(:[^E]+\\)*:end:[\n]"
+              ":properties:[\n]+[\s\t]*:custom_id:[\s\t]*[^\n]+[\n]+[\s\t]*\\(:[^E]+\\)*:end:[\n]+"
               nil t 1)
         (replace-match "")))))
 
